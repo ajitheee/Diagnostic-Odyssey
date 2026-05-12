@@ -1,181 +1,316 @@
 "use client";
-import { useState } from "react";
+import Link from "next/link";
 
-const s = {
-  // Layout
-  page: { minHeight: "100vh", background: "#0f1117", color: "#e8eaf0", fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" },
-  container: { maxWidth: 1100, margin: "0 auto", padding: "0 20px 60px" },
+const CSS = `
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #080b14; color: #e2e8f0; font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif; }
 
-  // Header
-  header: { padding: "40px 0 32px", textAlign: "center", borderBottom: "1px solid #2e3148", marginBottom: 36 },
-  badge: { display: "inline-block", background: "rgba(108,142,245,0.15)", color: "#6c8ef5", border: "1px solid rgba(108,142,245,0.3)", borderRadius: 20, padding: "4px 14px", fontSize: 12, fontWeight: 600, letterSpacing: 1, marginBottom: 16 },
-  title: { fontSize: "clamp(28px, 5vw, 44px)", fontWeight: 800, background: "linear-gradient(135deg, #6c8ef5, #a78bfa)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", marginBottom: 10 },
-  subtitle: { color: "#9095b0", fontSize: 16, maxWidth: 560, margin: "0 auto 6px" },
-  warning: { display: "inline-block", color: "#f59e0b", fontSize: 13, background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.2)", borderRadius: 8, padding: "6px 14px", marginTop: 12 },
+  @keyframes fadeUp   { from { opacity:0; transform:translateY(24px); } to { opacity:1; transform:translateY(0); } }
+  @keyframes pulse    { 0%,100%{opacity:1;} 50%{opacity:0.4;} }
+  @keyframes float    { 0%,100%{transform:translateY(0);} 50%{transform:translateY(-8px);} }
+  @keyframes gradMove { 0%{background-position:0% 50%;} 50%{background-position:100% 50%;} 100%{background-position:0% 50%;} }
 
-  // Grid
-  grid: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, "@media(maxWidth:768px)": { gridTemplateColumns: "1fr" } },
+  .fade-up  { animation: fadeUp 0.6s ease forwards; }
+  .fade-up-2{ animation: fadeUp 0.6s ease 0.15s forwards; opacity:0; }
+  .fade-up-3{ animation: fadeUp 0.6s ease 0.3s forwards; opacity:0; }
+  .fade-up-4{ animation: fadeUp 0.6s ease 0.45s forwards; opacity:0; }
 
-  // Cards
-  card: { background: "#1a1d27", border: "1px solid #2e3148", borderRadius: 16, padding: 28 },
-  cardTitle: { fontSize: 14, fontWeight: 700, color: "#6c8ef5", textTransform: "uppercase", letterSpacing: 1, marginBottom: 20 },
+  .mesh-bg {
+    position:absolute; inset:0; opacity:0.5;
+    background-image:
+      radial-gradient(circle at 15% 50%, rgba(108,142,245,0.18) 0%, transparent 50%),
+      radial-gradient(circle at 85% 20%, rgba(167,139,250,0.18) 0%, transparent 50%),
+      radial-gradient(circle at 50% 85%, rgba(52,211,153,0.1) 0%, transparent 40%);
+  }
+  .grid-bg {
+    position:absolute; inset:0; opacity:0.05;
+    background-image: linear-gradient(rgba(108,142,245,0.8) 1px, transparent 1px), linear-gradient(90deg, rgba(108,142,245,0.8) 1px, transparent 1px);
+    background-size: 48px 48px;
+  }
 
-  // Form
-  formGroup: { marginBottom: 18 },
-  label: { display: "block", fontSize: 13, fontWeight: 600, color: "#9095b0", marginBottom: 6 },
-  input: { width: "100%", background: "#222537", border: "1px solid #2e3148", borderRadius: 10, padding: "10px 14px", color: "#e8eaf0", fontSize: 14, outline: "none", transition: "border 0.2s", resize: "vertical" },
+  .step-card:hover   { transform:translateY(-4px); border-color:rgba(108,142,245,0.4) !important; }
+  .sample-card:hover { transform:translateY(-3px); border-color:rgba(108,142,245,0.5) !important; cursor:pointer; }
+  .feature-item:hover{ background:rgba(108,142,245,0.08) !important; }
+  .cta-btn:hover     { transform:translateY(-2px); box-shadow:0 12px 32px rgba(108,142,245,0.45) !important; }
+  .nav-btn:hover     { background:rgba(108,142,245,0.15) !important; }
 
-  // Button
-  btn: { width: "100%", padding: "14px", background: "linear-gradient(135deg, #6c8ef5, #a78bfa)", border: "none", borderRadius: 12, color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer", marginTop: 8, transition: "opacity 0.2s" },
-  btnDisabled: { opacity: 0.6, cursor: "not-allowed" },
+  a { color: inherit; text-decoration: none; }
 
-  // Results
-  resultBox: { minHeight: 400, background: "#222537", border: "1px solid #2e3148", borderRadius: 12, padding: 20, fontSize: 14, lineHeight: 1.8, whiteSpace: "pre-wrap", color: "#e8eaf0", overflowY: "auto", maxHeight: 620 },
-  placeholder: { color: "#9095b0", textAlign: "center", paddingTop: 80 },
-  loading: { textAlign: "center", paddingTop: 80 },
-  spinner: { width: 36, height: 36, border: "3px solid #2e3148", borderTop: "3px solid #6c8ef5", borderRadius: "50%", animation: "spin 0.8s linear infinite", margin: "0 auto 16px" },
-  tagRow: { display: "flex", flexWrap: "wrap", gap: 8, marginTop: 16 },
-  tag: { background: "rgba(108,142,245,0.12)", color: "#6c8ef5", border: "1px solid rgba(108,142,245,0.25)", borderRadius: 20, padding: "3px 12px", fontSize: 12 },
-  errorBox: { background: "rgba(248,113,113,0.08)", border: "1px solid rgba(248,113,113,0.3)", borderRadius: 10, padding: 16, color: "#f87171", fontSize: 14 },
+  @media (max-width: 768px) {
+    .steps-grid   { grid-template-columns: 1fr !important; }
+    .stats-grid   { grid-template-columns: 1fr 1fr !important; }
+    .features-grid{ grid-template-columns: 1fr !important; }
+    .samples-grid { grid-template-columns: 1fr !important; }
+    .hero-title   { font-size: 36px !important; }
+  }
+`;
 
-  // Footer
-  footer: { textAlign: "center", color: "#9095b0", fontSize: 13, marginTop: 48, paddingTop: 24, borderTop: "1px solid #2e3148" },
-};
+const SAMPLE_CASES = [
+  {
+    label: "Autoimmune Mystery",
+    icon: "🔴",
+    tag: "Common misdiagnosis: Anxiety",
+    age: "28", sex: "Female", duration: "2 years",
+    symptoms: "Extreme fatigue, butterfly-shaped rash on face after sun exposure, joint pain that moves between joints, hair falling out in clumps, mouth ulcers, occasional kidney pain, brain fog",
+    prev_diagnoses: "Anxiety, depression, fibromyalgia",
+    notes: "Symptoms flare after sun exposure and stress",
+  },
+  {
+    label: "Fainting & Heart Racing",
+    icon: "💜",
+    tag: "Common misdiagnosis: Panic disorder",
+    age: "22", sex: "Female", duration: "18 months",
+    symptoms: "Heart races immediately when I stand up, dizzy spells, fainting, extreme fatigue, brain fog, nausea when upright, shakiness, feel much better lying down",
+    prev_diagnoses: "Anxiety, panic disorder, dehydration",
+    notes: "Symptoms much worse in heat and after exercise",
+  },
+  {
+    label: "Joint Pain & Skin Issues",
+    icon: "🟡",
+    tag: "Common misdiagnosis: Growing pains",
+    age: "19", sex: "Male", duration: "Since childhood",
+    symptoms: "Joints dislocate or sublux easily, chronic widespread pain, skin stretches more than normal, easy bruising, extreme fatigue, heal slowly from injuries, frequent sprains with no trauma",
+    prev_diagnoses: "Growing pains, hypochondria, fibromyalgia",
+    notes: "Family history of similar joint problems",
+  },
+  {
+    label: "Abdominal Attack Episodes",
+    icon: "🟠",
+    tag: "Common misdiagnosis: IBS / Appendicitis",
+    age: "31", sex: "Female", duration: "3 years",
+    symptoms: "Sudden severe abdominal pain attacks lasting hours, nausea, vomiting, confusion during attacks, dark red/brown urine during attacks, muscle weakness, psychiatric symptoms between attacks",
+    prev_diagnoses: "IBS, appendicitis (appendix removed but attacks continued), psychiatric disorder",
+    notes: "Attacks sometimes triggered by medications or fasting",
+  },
+];
 
-const FIELD = ({ label, id, placeholder, value, onChange, rows = 1, required = false }) => (
-  <div style={s.formGroup}>
-    <label htmlFor={id} style={s.label}>{label}{required && <span style={{ color: "#6c8ef5" }}> *</span>}</label>
-    {rows > 1
-      ? <textarea id={id} rows={rows} placeholder={placeholder} value={value} onChange={onChange} style={{ ...s.input, minHeight: rows * 28 }} />
-      : <input id={id} placeholder={placeholder} value={value} onChange={onChange} style={s.input} />}
-  </div>
-);
+const STEPS = [
+  { number: "01", icon: "📋", title: "Describe Your History", desc: "Fill in your symptoms, duration, what doctors have told you, and tests already done. The more detail, the better the analysis." },
+  { number: "02", icon: "🧠", title: "Gemma 4 Analyses", desc: "Google's Gemma 4 AI cross-references your symptoms against 15+ rare disease patterns using Retrieval-Augmented Generation (RAG)." },
+  { number: "03", icon: "💡", title: "Get Your Next Step", desc: "Receive specific tests to request, the right specialist to see, and intelligent questions to bring to your next appointment." },
+];
 
-export default function Home() {
-  const [form, setForm] = useState({ age: "", sex: "Female", duration: "", symptoms: "", prev_diagnoses: "", tests_done: "", family_history: "", notes: "" });
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState(null);
-  const [diseases, setDiseases] = useState([]);
-  const [error, setError] = useState(null);
+const FEATURES = [
+  { emoji: "🔍", label: "Conditions to Investigate", desc: "Top 3–4 rare conditions that match your symptom pattern with reasoning", color: "#a78bfa" },
+  { emoji: "🧪", label: "Specific Tests to Request", desc: "Exact test names to ask your doctor for — not vague suggestions", color: "#6c8ef5" },
+  { emoji: "👨‍⚕️", label: "Right Specialist to See", desc: "Which type of specialist is best placed to investigate your case", color: "#34d399" },
+  { emoji: "❓", label: "Doctor Questions", desc: "5 specific, intelligent questions to bring to your next appointment", color: "#fbbf24" },
+  { emoji: "📋", label: "Pattern Analysis", desc: "What patterns in your history stand out medically and why", color: "#f87171" },
+  { emoji: "🖼️", label: "Upload Medical Records", desc: "Photo or PDF of lab reports — Gemma 4 reads them with its vision model", color: "#38bdf8" },
+];
 
-  const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
+const ACCURACY = [
+  { q: "Is this a diagnosis?", a: "No. This tool helps you identify what questions to ask and what tests to request. Only a qualified doctor can diagnose you.", color: "#f87171" },
+  { q: "How accurate is it?", a: "Gemma 4 reasons across symptoms, history, and known misdiagnosis patterns. It's most accurate when given detailed symptom descriptions.", color: "#fbbf24" },
+  { q: "Which diseases does it know?", a: "The RAG database currently covers 15 rare conditions including EDS, Lupus, POTS, MCAS, ME/CFS, Porphyria, Wilson's Disease, and more.", color: "#6c8ef5" },
+  { q: "Who is it for?", a: "People who have been through multiple doctors without a clear diagnosis and need help knowing what direction to explore next.", color: "#34d399" },
+];
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!form.symptoms.trim()) return;
-    setLoading(true); setResult(null); setError(null); setDiseases([]);
+function buildSampleURL(c) {
+  const p = new URLSearchParams({ age: c.age, sex: c.sex, duration: c.duration, symptoms: c.symptoms, prev_diagnoses: c.prev_diagnoses, notes: c.notes || "" });
+  return `/diagnose?${p.toString()}`;
+}
 
-    try {
-      const res = await fetch("/api/diagnose", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
-      });
-      const data = await res.json();
-      if (!res.ok) { setError(data.error || "Something went wrong."); }
-      else { setResult(data.result); setDiseases(data.diseases_checked || []); }
-    } catch {
-      setError("Network error. Please check your connection and try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
+export default function LandingPage() {
   return (
-    <div style={s.page}>
-      <style>{`
-        @keyframes spin { to { transform: rotate(360deg); } }
-        textarea:focus, input:focus { border-color: #6c8ef5 !important; }
-        select { appearance: none; }
-        button:hover:not(:disabled) { opacity: 0.88; }
-        @media (max-width: 768px) { .grid { grid-template-columns: 1fr !important; } }
-      `}</style>
+    <div style={{ minHeight: "100vh", background: "#080b14" }}>
+      <style>{CSS}</style>
 
-      <div style={s.container}>
-        {/* Header */}
-        <div style={s.header}>
-          <div style={s.badge}>GEMMA 4 · HEALTH & SCIENCES</div>
-          <h1 style={s.title}>The Diagnostic Odyssey Ender</h1>
-          <p style={s.subtitle}>For people who've seen doctor after doctor without answers. Let's find a new direction together.</p>
-          <div style={s.warning}>⚠ This tool helps you advocate for yourself — it does not replace a doctor's diagnosis</div>
+      {/* ── NAV ── */}
+      <nav style={{ position: "sticky", top: 0, zIndex: 50, background: "rgba(8,11,20,0.85)", backdropFilter: "blur(12px)", borderBottom: "1px solid rgba(255,255,255,0.06)", padding: "0 24px" }}>
+        <div style={{ maxWidth: 1100, margin: "0 auto", height: 60, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <span style={{ fontSize: 20 }}>🔬</span>
+            <span style={{ fontWeight: 800, fontSize: 15, background: "linear-gradient(135deg,#6c8ef5,#a78bfa)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Diagnostic Odyssey Ender</span>
+          </div>
+          <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+            <span style={{ fontSize: 11, color: "#4a5568", fontWeight: 600, letterSpacing: "0.06em" }}>GEMMA 4 HACKATHON</span>
+            <Link href="/diagnose">
+              <button className="nav-btn" style={{ padding: "8px 18px", background: "rgba(108,142,245,0.1)", border: "1px solid rgba(108,142,245,0.3)", borderRadius: 10, color: "#818cf8", fontSize: 13, fontWeight: 700, cursor: "pointer", transition: "all 0.2s" }}>
+                Try the Tool →
+              </button>
+            </Link>
+          </div>
+        </div>
+      </nav>
+
+      {/* ── HERO ── */}
+      <div style={{ position: "relative", overflow: "hidden", paddingBottom: 80 }}>
+        <div className="mesh-bg" />
+        <div className="grid-bg" />
+        <div style={{ position: "relative", maxWidth: 860, margin: "0 auto", padding: "80px 24px 0", textAlign: "center" }}>
+          <div className="fade-up" style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "rgba(108,142,245,0.1)", border: "1px solid rgba(108,142,245,0.25)", borderRadius: 24, padding: "6px 18px", fontSize: 12, fontWeight: 700, color: "#6c8ef5", letterSpacing: "0.08em", marginBottom: 28 }}>
+            <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#6c8ef5", animation: "pulse 1.5s infinite", display: "inline-block" }} />
+            BUILT FOR GEMMA 4 HACKATHON · HEALTH & SCIENCES
+          </div>
+
+          <h1 className="hero-title fade-up-2" style={{ fontSize: 58, fontWeight: 900, lineHeight: 1.08, letterSpacing: "-0.03em", marginBottom: 24, background: "linear-gradient(135deg,#c7d2fe 0%,#a78bfa 45%,#6c8ef5 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+            The Diagnostic<br />Odyssey Ender
+          </h1>
+
+          <p className="fade-up-3" style={{ fontSize: 19, color: "#94a3b8", lineHeight: 1.75, maxWidth: 560, margin: "0 auto 36px" }}>
+            300 million people live with rare diseases. The average diagnosis takes <strong style={{ color: "#e2e8f0" }}>6 years</strong> and <strong style={{ color: "#e2e8f0" }}>7 doctors</strong>. We built an AI that helps patients find their next step — powered by <strong style={{ color: "#a78bfa" }}>Google Gemma 4</strong>.
+          </p>
+
+          <div className="fade-up-4" style={{ display: "flex", gap: 14, justifyContent: "center", flexWrap: "wrap", marginBottom: 20 }}>
+            <Link href="/diagnose">
+              <button className="cta-btn" style={{ padding: "15px 32px", background: "linear-gradient(135deg,#6c8ef5,#a78bfa)", border: "none", borderRadius: 14, color: "#fff", fontSize: 16, fontWeight: 800, cursor: "pointer", transition: "all 0.2s", letterSpacing: "0.01em" }}>
+                🔍 Start Your Analysis
+              </button>
+            </Link>
+            <a href="#how-it-works">
+              <button style={{ padding: "15px 28px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 14, color: "#94a3b8", fontSize: 15, fontWeight: 600, cursor: "pointer", transition: "all 0.2s" }}>
+                How it works ↓
+              </button>
+            </a>
+          </div>
+          <p style={{ fontSize: 12, color: "#4a5568" }}>Free to use · No signup required · Not a medical diagnosis</p>
+
+          {/* Stats */}
+          <div className="stats-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, marginTop: 60 }}>
+            {[["300M+","People affected by rare diseases","#a78bfa"],["6 yrs","Average time to get a diagnosis","#6c8ef5"],["15+","Rare conditions in our database","#34d399"],["7+","Doctors seen before diagnosis","#f87171"]].map(([n,l,c])=>(
+              <div key={l} style={{ padding: "20px 16px", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 14, textAlign: "center" }}>
+                <div style={{ fontSize: 26, fontWeight: 800, color: c, marginBottom: 6 }}>{n}</div>
+                <div style={{ fontSize: 12, color: "#718096", lineHeight: 1.5 }}>{l}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* ── HOW IT WORKS ── */}
+      <div id="how-it-works" style={{ maxWidth: 1100, margin: "0 auto", padding: "90px 24px" }}>
+        <div style={{ textAlign: "center", marginBottom: 56 }}>
+          <p style={{ fontSize: 12, fontWeight: 700, color: "#6c8ef5", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 12 }}>HOW IT WORKS</p>
+          <h2 style={{ fontSize: 36, fontWeight: 800, color: "#e2e8f0", letterSpacing: "-0.02em" }}>Three steps to your next answer</h2>
+        </div>
+        <div className="steps-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 20 }}>
+          {STEPS.map((s) => (
+            <div key={s.number} className="step-card" style={{ padding: 32, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 20, transition: "all 0.25s" }}>
+              <div style={{ fontSize: 11, fontWeight: 800, color: "#4a5568", letterSpacing: "0.1em", marginBottom: 16 }}>{s.number}</div>
+              <div style={{ fontSize: 32, marginBottom: 16 }}>{s.icon}</div>
+              <h3 style={{ fontSize: 18, fontWeight: 700, color: "#e2e8f0", marginBottom: 10 }}>{s.title}</h3>
+              <p style={{ fontSize: 14, color: "#718096", lineHeight: 1.7 }}>{s.desc}</p>
+            </div>
+          ))}
         </div>
 
-        {/* Main Grid */}
-        <form onSubmit={handleSubmit}>
-          <div className="grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
+        {/* Tech explanation */}
+        <div style={{ marginTop: 32, padding: "28px 32px", background: "rgba(108,142,245,0.05)", border: "1px solid rgba(108,142,245,0.15)", borderRadius: 18, display: "flex", gap: 20, alignItems: "flex-start", flexWrap: "wrap" }}>
+          <div style={{ flex: 1, minWidth: 260 }}>
+            <p style={{ fontSize: 12, fontWeight: 700, color: "#6c8ef5", letterSpacing: "0.08em", marginBottom: 8 }}>UNDER THE HOOD</p>
+            <h3 style={{ fontSize: 18, fontWeight: 700, color: "#e2e8f0", marginBottom: 8 }}>Gemma 4 + RAG Architecture</h3>
+            <p style={{ fontSize: 14, color: "#94a3b8", lineHeight: 1.7 }}>We use <strong style={{ color: "#a78bfa" }}>Retrieval-Augmented Generation</strong> — your symptoms are matched semantically against a curated rare disease database, and the top matching conditions are injected into Gemma 4's context. This grounds the AI's reasoning in specific medical knowledge rather than general guesses.</p>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10, minWidth: 200 }}>
+            {[["🤖","Google Gemma 4 E4B — Vision + Text"],["🗄️","RAG database — 15 rare diseases"],["📊","Semantic symptom matching"],["🖼️","Multimodal — reads medical images"]].map(([e,t])=>(
+              <div key={t} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 13, color: "#718096" }}>
+                <span>{e}</span><span>{t}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
 
-            {/* Left — Patient Form */}
-            <div style={s.card}>
-              <div style={s.cardTitle}>📋 Your Medical History</div>
-
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-                <FIELD label="Age" id="age" placeholder="e.g. 32" value={form.age} onChange={set("age")} />
-                <div style={s.formGroup}>
-                  <label htmlFor="sex" style={s.label}>Sex</label>
-                  <select id="sex" value={form.sex} onChange={set("sex")} style={{ ...s.input, cursor: "pointer" }}>
-                    <option>Female</option><option>Male</option><option>Non-binary / Other</option><option>Prefer not to say</option>
-                  </select>
+      {/* ── WHAT YOU GET ── */}
+      <div style={{ background: "rgba(255,255,255,0.015)", borderTop: "1px solid rgba(255,255,255,0.05)", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+        <div style={{ maxWidth: 1100, margin: "0 auto", padding: "80px 24px" }}>
+          <div style={{ textAlign: "center", marginBottom: 52 }}>
+            <p style={{ fontSize: 12, fontWeight: 700, color: "#6c8ef5", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 12 }}>WHAT YOU GET</p>
+            <h2 style={{ fontSize: 36, fontWeight: 800, color: "#e2e8f0", letterSpacing: "-0.02em" }}>Everything in one analysis</h2>
+          </div>
+          <div className="features-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 16 }}>
+            {FEATURES.map((f) => (
+              <div key={f.label} className="feature-item" style={{ display: "flex", gap: 16, padding: "20px 22px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, transition: "all 0.2s" }}>
+                <div style={{ fontSize: 26, flexShrink: 0, marginTop: 2 }}>{f.emoji}</div>
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: f.color, marginBottom: 6 }}>{f.label}</div>
+                  <div style={{ fontSize: 13, color: "#718096", lineHeight: 1.6 }}>{f.desc}</div>
                 </div>
               </div>
-
-              <FIELD label="How long have you had these symptoms?" id="duration" placeholder="e.g. 3 years, since childhood..." value={form.duration} onChange={set("duration")} />
-              <FIELD label="Describe ALL your symptoms" id="symptoms" placeholder="e.g. extreme fatigue, joint pain that moves around, rashes after sun, brain fog, hair falling out, nausea..." value={form.symptoms} onChange={set("symptoms")} rows={4} required />
-              <FIELD label="What have doctors told you so far?" id="prev_diagnoses" placeholder="e.g. anxiety, fibromyalgia, nothing found, IBS..." value={form.prev_diagnoses} onChange={set("prev_diagnoses")} rows={2} />
-              <FIELD label="Tests already done (and results)" id="tests_done" placeholder="e.g. blood count (normal), thyroid (normal), MRI brain (clear)..." value={form.tests_done} onChange={set("tests_done")} rows={2} />
-              <FIELD label="Family medical history" id="family_history" placeholder="e.g. mother has autoimmune disease, cousin has EDS..." value={form.family_history} onChange={set("family_history")} />
-              <FIELD label="Anything else important?" id="notes" placeholder="e.g. symptoms worse after exercise, started after viral infection, only at night..." value={form.notes} onChange={set("notes")} rows={2} />
-
-              <button type="submit" disabled={loading || !form.symptoms.trim()} style={{ ...s.btn, ...(loading || !form.symptoms.trim() ? s.btnDisabled : {}) }}>
-                {loading ? "Analyzing with Gemma 4..." : "🔍 Analyze My History"}
-              </button>
-            </div>
-
-            {/* Right — Results */}
-            <div style={s.card}>
-              <div style={s.cardTitle}>💡 Analysis & Next Steps</div>
-
-              {!loading && !result && !error && (
-                <div style={{ ...s.resultBox, ...s.placeholder }}>
-                  <div style={{ fontSize: 40, marginBottom: 16 }}>🔬</div>
-                  <p>Fill in your symptoms on the left and click <strong>Analyze</strong>.</p>
-                  <p style={{ marginTop: 8, fontSize: 13 }}>Gemma 4 will cross-reference 15 rare diseases and give you a personalized next-step plan.</p>
-                </div>
-              )}
-
-              {loading && (
-                <div style={{ ...s.resultBox, ...s.loading }}>
-                  <div style={s.spinner} />
-                  <p style={{ color: "#9095b0" }}>Gemma 4 is analyzing your history...</p>
-                  <p style={{ color: "#6c8ef5", fontSize: 13, marginTop: 8 }}>Cross-referencing rare disease database</p>
-                </div>
-              )}
-
-              {error && !loading && (
-                <div>
-                  <div style={s.errorBox}>⚠ {error}</div>
-                </div>
-              )}
-
-              {result && !loading && (
-                <>
-                  <div style={s.resultBox}>{result}</div>
-                  {diseases.length > 0 && (
-                    <div>
-                      <p style={{ fontSize: 12, color: "#9095b0", marginTop: 16, marginBottom: 8 }}>DISEASES CROSS-REFERENCED:</p>
-                      <div style={s.tagRow}>
-                        {diseases.map((d) => <span key={d} style={s.tag}>{d}</span>)}
-                      </div>
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
+            ))}
           </div>
-        </form>
+        </div>
+      </div>
 
-        {/* Footer */}
-        <div style={s.footer}>
-          Built for the Gemma 4 Hackathon · Health &amp; Sciences Track · Powered by Google Gemma 4
+      {/* ── SAMPLE CASES ── */}
+      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "90px 24px" }}>
+        <div style={{ textAlign: "center", marginBottom: 52 }}>
+          <p style={{ fontSize: 12, fontWeight: 700, color: "#6c8ef5", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 12 }}>TRY IT NOW</p>
+          <h2 style={{ fontSize: 36, fontWeight: 800, color: "#e2e8f0", letterSpacing: "-0.02em", marginBottom: 14 }}>Test with a real scenario</h2>
+          <p style={{ fontSize: 16, color: "#718096", maxWidth: 480, margin: "0 auto" }}>Click any case below to pre-fill the tool with a real symptom pattern and see Gemma 4 in action</p>
+        </div>
+        <div className="samples-grid" style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 18 }}>
+          {SAMPLE_CASES.map((c) => (
+            <Link key={c.label} href={buildSampleURL(c)}>
+              <div className="sample-card" style={{ padding: 28, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 18, transition: "all 0.25s", height: "100%" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
+                  <span style={{ fontSize: 28 }}>{c.icon}</span>
+                  <div>
+                    <h3 style={{ fontSize: 16, fontWeight: 700, color: "#e2e8f0" }}>{c.label}</h3>
+                    <span style={{ fontSize: 11, color: "#f87171", background: "rgba(248,113,113,0.1)", border: "1px solid rgba(248,113,113,0.2)", borderRadius: 10, padding: "2px 8px", fontWeight: 600 }}>{c.tag}</span>
+                  </div>
+                </div>
+                <p style={{ fontSize: 13, color: "#718096", lineHeight: 1.7, marginBottom: 16 }}>
+                  <strong style={{ color: "#94a3b8" }}>Symptoms: </strong>{c.symptoms.slice(0, 120)}...
+                </p>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "#6c8ef5", fontWeight: 600 }}>
+                  <span>Run this analysis</span>
+                  <span>→</span>
+                </div>
+              </div>
+            </Link>
+          ))}
+        </div>
+      </div>
+
+      {/* ── ACCURACY & FAQ ── */}
+      <div style={{ background: "rgba(255,255,255,0.015)", borderTop: "1px solid rgba(255,255,255,0.05)", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+        <div style={{ maxWidth: 860, margin: "0 auto", padding: "80px 24px" }}>
+          <div style={{ textAlign: "center", marginBottom: 48 }}>
+            <p style={{ fontSize: 12, fontWeight: 700, color: "#6c8ef5", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 12 }}>TRANSPARENCY</p>
+            <h2 style={{ fontSize: 34, fontWeight: 800, color: "#e2e8f0", letterSpacing: "-0.02em", marginBottom: 12 }}>How accurate is it?</h2>
+            <p style={{ fontSize: 15, color: "#718096" }}>We believe in being completely honest about what this tool is and isn't</p>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            {ACCURACY.map((a) => (
+              <div key={a.q} style={{ padding: "22px 26px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 14, display: "flex", gap: 20, alignItems: "flex-start" }}>
+                <div style={{ width: 10, height: 10, borderRadius: "50%", background: a.color, flexShrink: 0, marginTop: 5 }} />
+                <div>
+                  <p style={{ fontSize: 15, fontWeight: 700, color: "#e2e8f0", marginBottom: 6 }}>{a.q}</p>
+                  <p style={{ fontSize: 14, color: "#94a3b8", lineHeight: 1.7 }}>{a.a}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* ── FINAL CTA ── */}
+      <div style={{ maxWidth: 700, margin: "0 auto", padding: "100px 24px", textAlign: "center" }}>
+        <div style={{ fontSize: 48, marginBottom: 24, animation: "float 3s ease-in-out infinite" }}>🔬</div>
+        <h2 style={{ fontSize: 38, fontWeight: 900, color: "#e2e8f0", letterSpacing: "-0.02em", marginBottom: 16 }}>Ready to find your next step?</h2>
+        <p style={{ fontSize: 16, color: "#718096", marginBottom: 36, lineHeight: 1.7 }}>Describe your symptoms and let Gemma 4 cross-reference them against rare disease patterns. Takes 2 minutes.</p>
+        <Link href="/diagnose">
+          <button className="cta-btn" style={{ padding: "17px 40px", background: "linear-gradient(135deg,#6c8ef5,#a78bfa)", border: "none", borderRadius: 16, color: "#fff", fontSize: 17, fontWeight: 800, cursor: "pointer", transition: "all 0.25s", letterSpacing: "0.01em" }}>
+            🔍 Start Your Free Analysis
+          </button>
+        </Link>
+        <p style={{ fontSize: 12, color: "#4a5568", marginTop: 16 }}>No account needed · Your data is not stored · Not a substitute for medical advice</p>
+      </div>
+
+      {/* ── FOOTER ── */}
+      <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)", padding: "28px 24px" }}>
+        <div style={{ maxWidth: 1100, margin: "0 auto", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span>🔬</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: "#4a5568" }}>Diagnostic Odyssey Ender</span>
+          </div>
+          <div style={{ display: "flex", gap: 20, alignItems: "center" }}>
+            <span style={{ fontSize: 12, color: "#4a5568" }}>Built for Gemma 4 Hackathon</span>
+            <span style={{ fontSize: 12, color: "#4a5568" }}>Health & Sciences Track</span>
+            <span style={{ fontSize: 12, color: "#4a5568" }}>Powered by Google Gemma 4</span>
+          </div>
         </div>
       </div>
     </div>
