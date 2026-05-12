@@ -1,4 +1,4 @@
-import { retrieveRelevantDiseases, formatDiseaseContext } from "@/lib/diseaseDB";
+import { retrieveRelevantDiseases, formatDiseaseContext } from "../../../lib/diseaseDB";
 
 export const runtime = "edge"; // fast Vercel edge runtime
 
