@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>The Diagnostic Odyssey Ender — Gemma 4</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #080b14; color: #e2e8f0; font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif; }
+
+    @keyframes spin    { to { transform: rotate(360deg); } }
+    @keyframes fadeUp  { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes pulse   { 0%,100%{opacity:1;} 50%{opacity:0.4;} }
+    @keyframes gradMove{ 0%{background-position:0% 50%;} 50%{background-position:100% 50%;} 100%{background-position:0% 50%;} }
+    @keyframes shimmer { from{left:-100%;} to{left:200%;} }
+    @keyframes countUp { from{opacity:0;transform:scale(0.8);} to{opacity:1;transform:scale(1);} }
+
+    .fade-up   { animation: fadeUp 0.5s ease forwards; }
+    .fade-up-2 { animation: fadeUp 0.5s ease 0.1s forwards; opacity:0; }
+    .fade-up-3 { animation: fadeUp 0.5s ease 0.2s forwards; opacity:0; }
+
+    input, textarea, select {
+      width:100%; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08);
+      border-radius:10px; padding:11px 14px; color:#e2e8f0; font-size:14px;
+      outline:none; transition:all 0.2s; resize:vertical; font-family:inherit;
+    }
+    input:focus, textarea:focus, select:focus {
+      border-color:#6c8ef5; background:rgba(108,142,245,0.06); box-shadow:0 0 0 3px rgba(108,142,245,0.12);
+    }
+    input::placeholder, textarea::placeholder { color:#4a5568; }
+    select option { background:#1a1d2e; }
+    label { display:block; font-size:12px; font-weight:600; color:#718096; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:6px; }
+    .field { margin-bottom:16px; }
+    .hint  { font-size:11px; color:#4a5568; margin-top:4px; }
+
+    .stat-card:hover { transform:translateY(-3px); transition:transform 0.2s; }
+    .submit-btn { position:relative; overflow:hidden; }
+    .submit-btn::after {
+      content:''; position:absolute; top:0; left:-100%; width:60%;
+      height:100%; background:linear-gradient(90deg,transparent,rgba(255,255,255,0.15),transparent);
+      animation:shimmer 2s infinite; transform:skewX(-20deg);
+    }
+    .submit-btn:hover:not(:disabled) { transform:translateY(-2px); box-shadow:0 8px 25px rgba(108,142,245,0.4); }
+    .submit-btn:disabled { opacity:0.5; cursor:not-allowed; }
+    .submit-btn:disabled::after { display:none; }
+
+    .result-section { animation:fadeUp 0.4s ease forwards; }
+    .copy-btn:hover  { background:rgba(108,142,245,0.2) !important; }
+
+    .upload-zone { border:2px dashed rgba(108,142,245,0.3); border-radius:14px; padding:28px 20px; text-align:center; cursor:pointer; transition:all 0.25s; background:rgba(108,142,245,0.03); }
+    .upload-zone:hover, .upload-zone.drag-over { border-color:#6c8ef5; background:rgba(108,142,245,0.08); transform:scale(1.01); }
+    .upload-zone.has-file { border-color:#34d399; background:rgba(52,211,153,0.06); }
+    .file-preview { display:flex; align-items:center; gap:12px; padding:12px 16px; background:rgba(52,211,153,0.08); border:1px solid rgba(52,211,153,0.25); border-radius:10px; margin-top:10px; }
+
+    .mesh-bg {
+      position:absolute; inset:0; opacity:0.4;
+      background-image:radial-gradient(circle at 20% 50%,rgba(108,142,245,0.15) 0%,transparent 50%),
+                       radial-gradient(circle at 80% 20%,rgba(167,139,250,0.15) 0%,transparent 50%),
+                       radial-gradient(circle at 50% 80%,rgba(52,211,153,0.08) 0%,transparent 40%);
+    }
+    .grid-bg {
+      position:absolute; inset:0; opacity:0.06;
+      background-image:linear-gradient(rgba(108,142,245,0.5) 1px,transparent 1px),
+                       linear-gradient(90deg,rgba(108,142,245,0.5) 1px,transparent 1px);
+      background-size:40px 40px;
+    }
+
+    @media(max-width:768px){
+      .main-grid  { grid-template-columns:1fr !important; }
+      .stats-grid { grid-template-columns:1fr 1fr !important; }
+      .hero-title { font-size:32px !important; }
+    }
+  </style>
+</head>
+<body>
+
+<div style="min-height:100vh; background:#080b14;">
+
+  <!-- HERO -->
+  <div style="position:relative; overflow:hidden; padding-bottom:60px;">
+    <div class="mesh-bg"></div>
+    <div class="grid-bg"></div>
+    <div style="position:relative; max-width:900px; margin:0 auto; padding:60px 24px 0; text-align:center;">
+
+      <!-- Badge -->
+      <div class="fade-up" style="display:inline-flex; align-items:center; gap:8px; background:rgba(108,142,245,0.1); border:1px solid rgba(108,142,245,0.25); border-radius:24px; padding:6px 16px; font-size:12px; font-weight:700; color:#6c8ef5; letter-spacing:0.08em; margin-bottom:24px;">
+        <span style="width:7px; height:7px; border-radius:50%; background:#6c8ef5; animation:pulse 1.5s infinite; display:inline-block;"></span>
+        GEMMA 4 HACKATHON · HEALTH &amp; SCIENCES
+      </div>
+
+      <!-- Title -->
+      <h1 class="hero-title fade-up-2" style="font-size:52px; font-weight:900; line-height:1.1; margin-bottom:20px; background:linear-gradient(135deg,#c7d2fe 0%,#a78bfa 40%,#6c8ef5 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; letter-spacing:-0.02em;">
+        The Diagnostic<br>Odyssey Ender
+      </h1>
+
+      <p class="fade-up-3" style="font-size:18px; color:#94a3b8; max-width:520px; margin:0 auto 32px; line-height:1.7;">
+        For people who've seen doctor after doctor with no answers. Gemma 4 cross-references rare disease patterns to help you find your next step.
+      </p>
+
+      <!-- Disclaimer -->
+      <div class="fade-up-3" style="display:inline-flex; align-items:center; gap:8px; background:rgba(251,191,36,0.07); border:1px solid rgba(251,191,36,0.2); border-radius:10px; padding:8px 16px; font-size:13px; color:#fbbf24;">
+        ⚠ This tool helps you advocate for yourself — it does not replace a medical diagnosis
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div style="max-width:800px; margin:48px auto 0; padding:0 24px;">
+      <div class="stats-grid" style="display:grid; grid-template-columns:repeat(4,1fr); gap:12px;">
+        <div class="stat-card" style="text-align:center; padding:20px 16px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.07); border-radius:14px;">
+          <div style="font-size:26px; font-weight:800; color:#a78bfa; margin-bottom:4px; animation:countUp 0.6s ease;">300M+</div>
+          <div style="font-size:12px; color:#718096; line-height:1.4;">People with rare diseases globally</div>
+        </div>
+        <div class="stat-card" style="text-align:center; padding:20px 16px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.07); border-radius:14px;">
+          <div style="font-size:26px; font-weight:800; color:#6c8ef5; margin-bottom:4px; animation:countUp 0.6s ease;">6 yrs</div>
+          <div style="font-size:12px; color:#718096; line-height:1.4;">Average time to get a diagnosis</div>
+        </div>
+        <div class="stat-card" style="text-align:center; padding:20px 16px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.07); border-radius:14px;">
+          <div style="font-size:26px; font-weight:800; color:#34d399; margin-bottom:4px; animation:countUp 0.6s ease;">50+</div>
+          <div style="font-size:12px; color:#718096; line-height:1.4;">Rare conditions in our database</div>
+        </div>
+        <div class="stat-card" style="text-align:center; padding:20px 16px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.07); border-radius:14px;">
+          <div style="font-size:26px; font-weight:800; color:#f87171; margin-bottom:4px; animation:countUp 0.6s ease;">7+</div>
+          <div style="font-size:12px; color:#718096; line-height:1.4;">Doctors seen before diagnosis</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN CONTENT -->
+  <div style="max-width:1200px; margin:0 auto; padding:40px 24px 80px;">
+    <div class="main-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:24px; align-items:start;">
+
+      <!-- LEFT: Form -->
+      <div style="background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.07); border-radius:20px; padding:32px;">
+
+        <div style="margin-bottom:28px;">
+          <h2 style="font-size:18px; font-weight:700; color:#e2e8f0; margin-bottom:6px;">📋 Your Medical History</h2>
+          <p style="font-size:13px; color:#718096;">The more detail you give, the better the analysis</p>
+          <div style="margin-top:14px;">
+            <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+              <span style="font-size:11px; color:#718096;">Profile completeness</span>
+              <span id="progress-label" style="font-size:11px; color:#6c8ef5; font-weight:600;">0%</span>
+            </div>
+            <div style="height:4px; background:rgba(255,255,255,0.06); border-radius:4px; overflow:hidden;">
+              <div id="progress-bar" style="height:100%; width:0%; background:linear-gradient(90deg,#6c8ef5,#a78bfa); border-radius:4px; transition:width 0.4s ease;"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Basic info -->
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:4px;">
+          <div class="field">
+            <label for="age">Age</label>
+            <input type="text" id="age" placeholder="e.g. 32" oninput="updateProgress()" />
+          </div>
+          <div class="field">
+            <label for="sex">Sex</label>
+            <select id="sex" onchange="updateProgress()">
+              <option>Female</option>
+              <option>Male</option>
+              <option>Non-binary / Other</option>
+              <option>Prefer not to say</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="duration">How long have symptoms lasted?</label>
+          <input type="text" id="duration" placeholder="e.g. 3 years, since age 15, 8 months..." oninput="updateProgress()" />
+        </div>
+
+        <div class="field">
+          <label for="symptoms">All your symptoms <span style="color:#6c8ef5;">*</span></label>
+          <textarea id="symptoms" rows="4" placeholder="Be as detailed as possible — fatigue, joint pain, rashes, brain fog, GI issues, fainting, hair loss..." oninput="updateProgress(); updateSubmitBtn();"></textarea>
+          <p class="hint">★ Most important field — describe every symptom even if they seem unrelated</p>
+        </div>
+
+        <div style="border-top:1px solid rgba(255,255,255,0.06); margin:20px 0; display:flex; align-items:center; gap:12px;">
+          <span style="font-size:11px; color:#4a5568; white-space:nowrap; font-weight:600; letter-spacing:0.05em;">MEDICAL HISTORY</span>
+          <div style="flex:1; height:1px; background:rgba(255,255,255,0.04);"></div>
+        </div>
+
+        <div class="field">
+          <label for="prev_diagnoses">What doctors have told you</label>
+          <textarea id="prev_diagnoses" rows="2" placeholder="e.g. anxiety, fibromyalgia, IBS, nothing found..." oninput="updateProgress()"></textarea>
+        </div>
+        <div class="field">
+          <label for="tests_done">Tests already done &amp; results</label>
+          <textarea id="tests_done" rows="2" placeholder="e.g. full blood count (normal), MRI brain (clear), thyroid (normal)..." oninput="updateProgress()"></textarea>
+        </div>
+        <div class="field">
+          <label for="family_history">Family medical history</label>
+          <input type="text" id="family_history" placeholder="e.g. mother has autoimmune disease, father had early heart problems..." oninput="updateProgress()" />
+        </div>
+        <div class="field">
+          <label for="notes">Any other important notes?</label>
+          <textarea id="notes" rows="2" placeholder="e.g. symptoms worse after exercise, began after a viral illness, only at night..." oninput="updateProgress()"></textarea>
+        </div>
+
+        <!-- File Upload -->
+        <div style="border-top:1px solid rgba(255,255,255,0.06); margin:20px 0; display:flex; align-items:center; gap:12px;">
+          <span style="font-size:11px; color:#4a5568; white-space:nowrap; font-weight:600; letter-spacing:0.05em;">UPLOAD RECORDS</span>
+          <div style="flex:1; height:1px; background:rgba(255,255,255,0.04);"></div>
+          <span style="font-size:10px; color:#6c8ef5; white-space:nowrap; font-weight:700; background:rgba(108,142,245,0.1); padding:2px 8px; border-radius:10px;">GEMMA 4 VISION</span>
+        </div>
+
+        <p style="font-size:12px; color:#718096; margin-bottom:12px; line-height:1.6;">
+          Can't describe everything in words? Upload a photo or PDF of your medical records — lab reports, doctor letters, test results, prescriptions. Gemma 4 will read them directly.
+        </p>
+
+        <input type="file" id="file-input" accept="image/*,.pdf" style="display:none;" onchange="handleFileSelect(this.files[0])" />
+
+        <div id="upload-zone" class="upload-zone" onclick="document.getElementById('file-input').click()"
+             ondrop="handleDrop(event)" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)">
+          <div style="font-size:32px; margin-bottom:10px;">📁</div>
+          <p style="font-size:14px; font-weight:600; color:#94a3b8; margin-bottom:4px;">Upload a medical record</p>
+          <p style="font-size:12px; color:#4a5568; line-height:1.6;">Lab reports · Doctor letters · Discharge summaries · Test results</p>
+          <p style="font-size:11px; color:#6c8ef5; margin-top:10px; font-weight:600;">JPG · PNG · PDF supported · Max 10MB</p>
+          <div style="margin-top:14px; display:inline-block; padding:7px 18px; background:rgba(108,142,245,0.12); border:1px solid rgba(108,142,245,0.25); border-radius:8px; font-size:13px; color:#818cf8; font-weight:600;">
+            Browse or drag &amp; drop
+          </div>
+        </div>
+
+        <div id="file-preview" style="display:none;" class="file-preview">
+          <span id="file-icon" style="font-size:28px;">📎</span>
+          <div style="flex:1; min-width:0;">
+            <p id="file-name" style="font-size:13px; font-weight:600; color:#34d399; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"></p>
+            <p id="file-meta" style="font-size:11px; color:#718096;"></p>
+          </div>
+          <button onclick="removeFile()" style="background:none; border:none; color:#718096; cursor:pointer; font-size:18px; padding:4px; transition:color 0.2s;" onmouseover="this.style.color='#f87171'" onmouseout="this.style.color='#718096'">✕</button>
+        </div>
+
+        <!-- Submit -->
+        <button id="submit-btn" class="submit-btn" onclick="handleSubmit()"
+          style="width:100%; margin-top:8px; padding:15px 24px; background:linear-gradient(135deg,#6c8ef5 0%,#a78bfa 100%); border:none; border-radius:12px; color:#fff; font-size:15px; font-weight:700; cursor:pointer; transition:all 0.2s; letter-spacing:0.02em;" disabled>
+          🔍 Analyze My History
+        </button>
+      </div>
+
+      <!-- RIGHT: Results -->
+      <div id="results-panel">
+        <!-- Empty state -->
+        <div id="empty-state" style="background:rgba(255,255,255,0.02); border:1px dashed rgba(255,255,255,0.1); border-radius:20px; padding:48px; text-align:center;">
+          <div style="font-size:52px; margin-bottom:20px;">🔬</div>
+          <h3 style="font-size:18px; font-weight:700; color:#94a3b8; margin-bottom:10px;">Your analysis will appear here</h3>
+          <p style="font-size:14px; color:#4a5568; max-width:320px; margin:0 auto; line-height:1.7;">Gemma 4 will cross-reference your symptoms against rare disease patterns — or read your uploaded medical records directly using its vision capability.</p>
+          <div style="margin-top:32px; display:flex; flex-direction:column; gap:10px; text-align:left; max-width:280px; margin:32px auto 0;">
+            <div style="display:flex; align-items:center; gap:10px; font-size:13px; color:#718096;"><div style="width:6px; height:6px; border-radius:50%; background:#6c8ef5; flex-shrink:0;"></div>Top conditions to investigate</div>
+            <div style="display:flex; align-items:center; gap:10px; font-size:13px; color:#718096;"><div style="width:6px; height:6px; border-radius:50%; background:#6c8ef5; flex-shrink:0;"></div>Exact tests to request</div>
+            <div style="display:flex; align-items:center; gap:10px; font-size:13px; color:#718096;"><div style="width:6px; height:6px; border-radius:50%; background:#6c8ef5; flex-shrink:0;"></div>Right specialist to see</div>
+            <div style="display:flex; align-items:center; gap:10px; font-size:13px; color:#718096;"><div style="width:6px; height:6px; border-radius:50%; background:#6c8ef5; flex-shrink:0;"></div>Questions to ask your doctor</div>
+          </div>
+        </div>
+
+        <!-- Loading state -->
+        <div id="loading-state" style="display:none; background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.07); border-radius:20px; padding:40px;">
+          <div style="text-align:center; margin-bottom:40px;">
+            <div style="width:56px; height:56px; border:3px solid rgba(108,142,245,0.2); border-top:3px solid #6c8ef5; border-radius:50%; animation:spin 0.8s linear infinite; margin:0 auto 20px;"></div>
+            <h3 style="font-size:18px; font-weight:700; color:#e2e8f0; margin-bottom:8px;">Gemma 4 is working</h3>
+            <p style="color:#718096; font-size:14px;">This takes 15–30 seconds</p>
+          </div>
+          <div id="loading-steps" style="display:flex; flex-direction:column; gap:12px;"></div>
+        </div>
+
+        <!-- Error state -->
+        <div id="error-state" style="display:none; background:rgba(248,113,113,0.06); border:1px solid rgba(248,113,113,0.2); border-radius:20px; padding:28px;">
+          <div style="font-size:28px; margin-bottom:12px;">⚠️</div>
+          <h3 style="color:#f87171; font-weight:700; margin-bottom:8px;">Something went wrong</h3>
+          <p id="error-msg" style="color:#fca5a5; font-size:14px; line-height:1.6;"></p>
+          <button onclick="resetError()" style="margin-top:16px; padding:8px 18px; background:rgba(248,113,113,0.15); border:1px solid rgba(248,113,113,0.3); border-radius:8px; color:#f87171; font-size:13px; cursor:pointer; font-weight:600;">Try Again</button>
+        </div>
+
+        <!-- Results -->
+        <div id="result-state" style="display:none;">
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
+            <div>
+              <h2 style="font-size:18px; font-weight:700; color:#e2e8f0;">💡 Your Analysis</h2>
+              <div style="display:flex; gap:8px; margin-top:4px; flex-wrap:wrap; align-items:center;">
+                <p style="font-size:13px; color:#718096;">Generated by Gemma 4 · Not a medical diagnosis</p>
+                <span id="vision-badge" style="display:none; font-size:11px; font-weight:700; color:#a78bfa; background:rgba(167,139,250,0.1); border:1px solid rgba(167,139,250,0.25); border-radius:10px; padding:1px 8px;">👁 Vision used</span>
+              </div>
+            </div>
+            <button id="copy-btn" class="copy-btn" onclick="copyResult()" style="padding:8px 14px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); border-radius:8px; color:#94a3b8; font-size:12px; font-weight:600; cursor:pointer; transition:all 0.2s; white-space:nowrap;">Copy Results</button>
+          </div>
+          <div id="result-sections" style="display:flex; flex-direction:column; gap:14px;"></div>
+          <div id="disease-tags" style="margin-top:20px; display:none;">
+            <p style="font-size:11px; color:#4a5568; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; margin-bottom:10px;">Diseases cross-referenced by Gemma 4</p>
+            <div id="disease-list" style="display:flex; flex-wrap:wrap; gap:8px;"></div>
+          </div>
+          <div style="margin-top:20px; padding:14px 18px; background:rgba(251,191,36,0.05); border:1px solid rgba(251,191,36,0.15); border-radius:12px; font-size:12px; color:#d97706; line-height:1.6;">
+            <strong>Important:</strong> This analysis is for educational purposes to help you have better conversations with your healthcare providers. Always consult a qualified medical professional for diagnosis and treatment.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <div style="border-top:1px solid rgba(255,255,255,0.06); padding:28px 24px; text-align:center;">
+    <div style="display:flex; align-items:center; justify-content:center; gap:16px; flex-wrap:wrap;">
+      <span style="background:rgba(108,142,245,0.1); border:1px solid rgba(108,142,245,0.2); border-radius:20px; padding:4px 14px; font-size:12px; color:#6c8ef5; font-weight:600;">Gemma 4 Hackathon</span>
+      <span style="color:#2d3748; font-size:13px;">·</span>
+      <span style="font-size:13px; color:#4a5568;">Health &amp; Sciences Track</span>
+      <span style="color:#2d3748; font-size:13px;">·</span>
+      <span style="font-size:13px; color:#4a5568;">Powered by Google Gemma 4</span>
+    </div>
+  </div>
+
+</div><!-- /app -->
+
+<script>
+// ── State ───────────────────────────────────────────────────────────────────
+let uploadedFile = null;
+let rawResult    = "";
+let loadingTimer = null;
+
+const LOADING_STEPS = [
+  "Reading your symptom history",
+  "Cross-referencing rare disease database",
+  "Identifying diagnostic patterns",
+  "Generating your personalized plan"
+];
+
+const SECTION_DEFS = [
+  { key:"conditions", emoji:"🔍", label:"Conditions to Investigate",  color:"#a78bfa", bg:"rgba(167,139,250,0.08)", border:"rgba(167,139,250,0.2)",
+    regex:/(?:#{0,3}\s*1\.?\s*(?:🔍)?\s*(?:TOP\s*)?[\d–-]*\s*CONDITIONS?(?:\s+WORTH\s+INVESTIGATING)?[\s\S]*?)(?=(?:#{0,3}\s*2\.|$))/i },
+  { key:"tests",      emoji:"🧪", label:"Specific Tests to Request",  color:"#6c8ef5", bg:"rgba(108,142,245,0.08)", border:"rgba(108,142,245,0.2)",
+    regex:/(?:#{0,3}\s*2\.?\s*(?:🧪)?\s*SPECIFIC\s*TESTS?[\s\S]*?)(?=(?:#{0,3}\s*3\.|$))/i },
+  { key:"specialist", emoji:"👨‍⚕️", label:"Specialist to See Next",    color:"#34d399", bg:"rgba(52,211,153,0.08)",  border:"rgba(52,211,153,0.2)",
+    regex:/(?:#{0,3}\s*3\.?\s*(?:👨)?(?:‍⚕️)?\s*(?:TYPE OF\s*)?SPECIALIST[\s\S]*?)(?=(?:#{0,3}\s*4\.|$))/i },
+  { key:"questions",  emoji:"❓", label:"Questions for Your Doctor",   color:"#fbbf24", bg:"rgba(251,191,36,0.08)",  border:"rgba(251,191,36,0.2)",
+    regex:/(?:#{0,3}\s*4\.?\s*(?:❓)?\s*(?:5\s*)?KEY\s*QUESTIONS?[\s\S]*?)(?=(?:#{0,3}\s*5\.|$))/i },
+  { key:"patterns",   emoji:"📋", label:"Patterns in Your History",   color:"#f87171", bg:"rgba(248,113,113,0.08)", border:"rgba(248,113,113,0.2)",
+    regex:/(?:#{0,3}\s*5\.?\s*(?:📋)?\s*(?:IMPORTANT\s*)?PATTERNS?[\s\S]*?)$/i },
+];
+
+// ── Output parsing ──────────────────────────────────────────────────────────
+function cleanGemmaOutput(text) {
+  let cleaned = text;
+  const markerRegex = /\*{0,3}\s*\(?\s*start\s+of\s+response\s*\)?\s*\*{0,3}/i;
+  const markerMatch = cleaned.match(markerRegex);
+  if (markerMatch) {
+    const markerEnd = cleaned.indexOf(markerMatch[0]) + markerMatch[0].length;
+    const afterMarker = cleaned.slice(markerEnd).trim();
+    if (afterMarker.length > 30) cleaned = afterMarker;
+  }
+  cleaned = cleaned.replace(/\*{0,3}\s*\(?self[- ]correction[^)]*\)?[\s\S]*?(?=\*{2,3}|\n\n1\.)/i, "").trim();
+  cleaned = cleaned.replace(/^\*{3,}\s*$/gm, "").trim();
+  cleaned = cleaned.replace(/\*\*(.*?)\*\*/g, "$1");
+  if (cleaned.length < 30) {
+    const m = text.match(/1\.\s*(?:🔍)?[\s\S]*/);
+    if (m) cleaned = m[0].replace(/\*\*(.*?)\*\*/g, "$1");
+  }
+  return cleaned.trim() || text;
+}
+
+function parseResult(rawText) {
+  const text = cleanGemmaOutput(rawText);
+  const sections = [];
+  let matched = false;
+  SECTION_DEFS.forEach(p => {
+    const m = text.match(p.regex);
+    if (m && m[0].trim().length > 10) {
+      sections.push({ ...p, content: m[0].trim() });
+      matched = true;
+    }
+  });
+  if (!matched) {
+    sections.push({ key:"raw", emoji:"💬", label:"Analysis", color:"#6c8ef5",
+      bg:"rgba(108,142,245,0.08)", border:"rgba(108,142,245,0.2)", content: text });
+  }
+  return sections;
+}
+
+// ── Progress bar ────────────────────────────────────────────────────────────
+function updateProgress() {
+  const ids = ["age","duration","symptoms","prev_diagnoses","tests_done","family_history","notes"];
+  let filled = ids.filter(id => document.getElementById(id).value.trim()).length;
+  if (uploadedFile) filled++;
+  const pct = Math.round((filled / (ids.length + 1)) * 100);
+  document.getElementById("progress-bar").style.width = pct + "%";
+  document.getElementById("progress-label").textContent = pct + "%";
+}
+
+function updateSubmitBtn() {
+  const sym = document.getElementById("symptoms").value.trim();
+  const btn = document.getElementById("submit-btn");
+  btn.disabled = !sym && !uploadedFile;
+  btn.style.opacity = btn.disabled ? "0.5" : "1";
+  btn.style.cursor  = btn.disabled ? "not-allowed" : "pointer";
+  btn.textContent   = uploadedFile ? "🔍  Analyze My History + Records" : "🔍  Analyze My History";
+}
+
+// ── File upload ─────────────────────────────────────────────────────────────
+function handleFileSelect(file) {
+  if (!file) return;
+  uploadedFile = file;
+  showFilePreview(file);
+  updateProgress();
+  updateSubmitBtn();
+}
+
+function showFilePreview(file) {
+  const isImg = file.type.startsWith("image/");
+  const isPdf = file.type === "application/pdf";
+  const icon  = isImg ? "🖼️" : isPdf ? "📄" : "📎";
+  const meta  = `${formatSize(file.size)} · ${isImg ? "Gemma 4 will read this image directly 👁" : "Text will be extracted from PDF 📝"}`;
+  document.getElementById("upload-zone").style.display = "none";
+  document.getElementById("file-preview").style.display = "flex";
+  document.getElementById("file-icon").textContent = icon;
+  document.getElementById("file-name").textContent = file.name;
+  document.getElementById("file-meta").textContent = meta;
+}
+
+function removeFile() {
+  uploadedFile = null;
+  document.getElementById("file-input").value = "";
+  document.getElementById("upload-zone").style.display = "";
+  document.getElementById("file-preview").style.display = "none";
+  updateProgress();
+  updateSubmitBtn();
+}
+
+function formatSize(bytes) {
+  return bytes < 1024 * 1024 ? `${(bytes/1024).toFixed(0)} KB` : `${(bytes/(1024*1024)).toFixed(1)} MB`;
+}
+
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById("upload-zone").classList.remove("drag-over");
+  const file = e.dataTransfer.files[0];
+  if (file) handleFileSelect(file);
+}
+function handleDragOver(e) { e.preventDefault(); document.getElementById("upload-zone").classList.add("drag-over"); }
+function handleDragLeave()  { document.getElementById("upload-zone").classList.remove("drag-over"); }
+
+// ── UI state helpers ────────────────────────────────────────────────────────
+function showPanel(id) {
+  ["empty-state","loading-state","error-state","result-state"].forEach(p => {
+    document.getElementById(p).style.display = p === id ? "" : "none";
+  });
+}
+
+function startLoadingAnimation() {
+  let step = 0;
+  const container = document.getElementById("loading-steps");
+  function render() {
+    container.innerHTML = LOADING_STEPS.map((s, i) => `
+      <div style="display:flex; align-items:center; gap:14px; padding:12px 16px; border-radius:12px;
+        background:${i===step?"rgba(108,142,245,0.1)":"rgba(255,255,255,0.02)"};
+        border:1px solid ${i===step?"rgba(108,142,245,0.3)":"rgba(255,255,255,0.05)"};
+        transition:all 0.4s;">
+        <div style="width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+          background:${i<step?"#34d399":i===step?"rgba(108,142,245,0.3)":"rgba(255,255,255,0.05)"};
+          font-size:12px; font-weight:700;
+          color:${i<step?"#fff":i===step?"#6c8ef5":"#4a5568"}; flex-shrink:0; transition:all 0.4s;">
+          ${i < step ? "✓" : i+1}
+        </div>
+        <span style="font-size:14px; font-weight:${i===step?600:400};
+          color:${i===step?"#e2e8f0":i<step?"#34d399":"#4a5568"}; transition:all 0.4s;">
+          ${s}${i===step?"..." : ""}
+        </span>
+      </div>`).join("");
+  }
+  render();
+  loadingTimer = setInterval(() => { if (step < LOADING_STEPS.length - 1) { step++; render(); } }, 2000);
+}
+
+function stopLoadingAnimation() {
+  clearInterval(loadingTimer);
+}
+
+// ── Submit ──────────────────────────────────────────────────────────────────
+async function handleSubmit() {
+  const symptoms = document.getElementById("symptoms").value.trim();
+  if (!symptoms && !uploadedFile) return;
+
+  showPanel("loading-state");
+  startLoadingAnimation();
+  document.getElementById("submit-btn").disabled = true;
+
+  try {
+    const fd = new FormData();
+    fd.append("age",            document.getElementById("age").value);
+    fd.append("sex",            document.getElementById("sex").value);
+    fd.append("duration",       document.getElementById("duration").value);
+    fd.append("symptoms",       symptoms);
+    fd.append("prev_diagnoses", document.getElementById("prev_diagnoses").value);
+    fd.append("tests_done",     document.getElementById("tests_done").value);
+    fd.append("family_history", document.getElementById("family_history").value);
+    fd.append("notes",          document.getElementById("notes").value);
+    if (uploadedFile) fd.append("record_file", uploadedFile);
+
+    const res  = await fetch("/diagnose", { method:"POST", body: fd });
+    const data = await res.json();
+
+    stopLoadingAnimation();
+
+    if (!res.ok || data.error) {
+      document.getElementById("error-msg").textContent = data.error || "Something went wrong.";
+      showPanel("error-state");
+    } else {
+      rawResult = data.result || "";
+      renderResults(data);
+      showPanel("result-state");
+    }
+  } catch(err) {
+    stopLoadingAnimation();
+    document.getElementById("error-msg").textContent = "Network error — make sure the Colab server is running.";
+    showPanel("error-state");
+  } finally {
+    document.getElementById("submit-btn").disabled = false;
+    updateSubmitBtn();
+  }
+}
+
+// ── Render results ──────────────────────────────────────────────────────────
+function renderResults(data) {
+  const sections = parseResult(data.result || "");
+  const container = document.getElementById("result-sections");
+  container.innerHTML = sections.map((sec, i) => `
+    <div class="result-section" style="background:${sec.bg}; border:1px solid ${sec.border}; border-radius:16px; padding:20px; animation-delay:${i*0.08}s;">
+      <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px;">
+        <span style="font-size:16px;">${sec.emoji}</span>
+        <span style="font-size:12px; font-weight:700; color:${sec.color}; text-transform:uppercase; letter-spacing:0.07em;">${sec.label}</span>
+      </div>
+      <div style="font-size:14px; color:#cbd5e1; line-height:1.8; white-space:pre-wrap;">${escapeHTML(sec.content)}</div>
+    </div>`).join("");
+
+  // Vision badge
+  document.getElementById("vision-badge").style.display = data.used_vision ? "inline" : "none";
+
+  // Disease tags
+  const diseases = data.diseases_checked || [];
+  if (diseases.length > 0) {
+    document.getElementById("disease-tags").style.display = "";
+    document.getElementById("disease-list").innerHTML = diseases.map(d =>
+      `<span style="background:rgba(108,142,245,0.08); color:#818cf8; border:1px solid rgba(108,142,245,0.2); border-radius:20px; padding:4px 12px; font-size:12px; font-weight:500;">${escapeHTML(d)}</span>`
+    ).join("");
+  } else {
+    document.getElementById("disease-tags").style.display = "none";
+  }
+}
+
+function escapeHTML(str) {
+  return str.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+
+function copyResult() {
+  if (!rawResult) return;
+  navigator.clipboard.writeText(rawResult).then(() => {
+    const btn = document.getElementById("copy-btn");
+    btn.textContent = "✓ Copied!";
+    btn.style.color = "#34d399";
+    btn.style.borderColor = "rgba(52,211,153,0.3)";
+    setTimeout(() => {
+      btn.textContent = "Copy Results";
+      btn.style.color = "#94a3b8";
+      btn.style.borderColor = "rgba(255,255,255,0.1)";
+    }, 2000);
+  });
+}
+
+function resetError() {
+  showPanel("empty-state");
+}
+</script>
+</body>
+</html>

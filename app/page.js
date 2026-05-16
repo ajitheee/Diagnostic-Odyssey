@@ -86,7 +86,7 @@ const SAMPLE_CASES = [
 
 const STEPS = [
   { number: "01", icon: "📋", title: "Describe Your History", desc: "Fill in your symptoms, duration, what doctors have told you, and tests already done. The more detail, the better the analysis." },
-  { number: "02", icon: "🧠", title: "Gemma 4 Analyses", desc: "Google's Gemma 4 AI cross-references your symptoms against 15+ rare disease patterns using Retrieval-Augmented Generation (RAG)." },
+  { number: "02", icon: "🧠", title: "Gemma 4 Analyses", desc: "Google's Gemma 4 AI cross-references your symptoms against 50+ rare disease patterns using Retrieval-Augmented Generation (RAG)." },
   { number: "03", icon: "💡", title: "Get Your Next Step", desc: "Receive specific tests to request, the right specialist to see, and intelligent questions to bring to your next appointment." },
 ];
 
@@ -168,7 +168,7 @@ export default function LandingPage() {
 
           {/* Stats */}
           <div className="stats-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, marginTop: 60 }}>
-            {[["300M+","People affected by rare diseases","#a78bfa"],["6 yrs","Average time to get a diagnosis","#6c8ef5"],["15+","Rare conditions in our database","#34d399"],["7+","Doctors seen before diagnosis","#f87171"]].map(([n,l,c])=>(
+            {[["300M+","People affected by rare diseases","#a78bfa"],["6 yrs","Average time to get a diagnosis","#6c8ef5"],["50+","Rare conditions in our database","#34d399"],["7+","Doctors seen before diagnosis","#f87171"]].map(([n,l,c])=>(
               <div key={l} style={{ padding: "20px 16px", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 14, textAlign: "center" }}>
                 <div style={{ fontSize: 26, fontWeight: 800, color: c, marginBottom: 6 }}>{n}</div>
                 <div style={{ fontSize: 12, color: "#718096", lineHeight: 1.5 }}>{l}</div>

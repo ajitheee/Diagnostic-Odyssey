@@ -339,7 +339,7 @@ function DiagnoseContent() {
           <div className="stats-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
             <StatCard number="300M+" label="People with rare diseases globally" color="#a78bfa" />
             <StatCard number="6 yrs" label="Average time to get a diagnosis" color="#6c8ef5" />
-            <StatCard number="15+" label="Rare conditions in our database" color="#34d399" />
+            <StatCard number="50+" label="Rare conditions in our database" color="#34d399" />
             <StatCard number="7+" label="Doctors seen before diagnosis" color="#f87171" />
           </div>
         </div>
